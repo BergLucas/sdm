@@ -15,7 +15,7 @@
 #
 # NOTE: Using this version on the master branch requires that the master branch is updated to V9.0 (NYI)
 #
-# At the moment requires apt-based package installs. Easy to fix, of course. It's only code...
+# At the moment requires apt-based or dnf-based package installs. Easy to fix, of course. It's only code...
 #
 
 function errexit() {
@@ -56,7 +56,18 @@ function getosdistro() {
 #
 myscript="$0 $@"
 #IFS=":" read osdistro osversion <<< $(getosdistro)
-[ "$(which apt)" == "" ] && errexit "? apt not found; cannot install on this system"
+if command -v "apt" &> /dev/null
+then
+    installmsg="* Ensure required packages are installed: systemd-container qemu-user-static qemu-utils binfmt-support parted"
+    installcmd="apt-get install --yes --no-install-recommends systemd-container qemu-user-static qemu-utils binfmt-support file parted"
+elif command -v "dnf" &> /dev/null
+then
+    installmsg="* Ensure required packages are installed: systemd-container qemu-user-static file parted"
+    installcmd="dnf install -y --setopt=install_weak_deps=False systemd-container qemu-user-static file parted"
+else
+    errexit "? apt and dnf not found; cannot install on this system"
+fi
+
 #
 # Create directories and download sdm
 #
@@ -123,9 +134,9 @@ $sudo sed -i "s#SDMDIR=\".*\"#SDMDIR=\"$dir\"#" $dir/sdm-gburn
 
 $sudo chmod -R 755 $dir/*
 $sudo chmod 644 $dir/{sdm-apps-example,sdm-xapps-example} $dir/1piboot/1piboot.conf
-echo "* Ensure required packages are installed: systemd-container qemu-user-static qemu-utils binfmt-support parted"
+echo "$installmsg"
 [[ $EUID -ne 0 ]] && sudo="sudo"
-$sudo apt-get install --yes --no-install-recommends systemd-container qemu-user-static qemu-utils binfmt-support file parted
+$sudo $installcmd
 
 echo ""
 if [ "$dir" == "/usr/local/sdm" -a "$(which sdm)" != "" ]
